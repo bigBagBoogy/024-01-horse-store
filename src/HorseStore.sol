@@ -5,8 +5,6 @@ import {ERC721Enumerable, ERC721} from "@openzeppelin/contracts/token/ERC721/ext
 import {IHorseStore} from "./IHorseStore.sol";
 
 /* 
- * @title HorseStore
- * @author equestrian_lover_420
  * @notice An NFT that represents a horse. Horses should be fed daily to keep happy, ideally several times a day. 
  */
 contract HorseStore is IHorseStore, ERC721Enumerable {
@@ -20,6 +18,8 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
 
     /*
      * @notice allows anyone to mint their own horse NFT. 
+     * e totalSupply() is from ERC721Enumerable and just keeps track.
+     * e no timestamp is stored
      */
     function mintHorse() external {
         _safeMint(msg.sender, totalSupply());
@@ -36,12 +36,28 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
     /*
      * @param horseId the id of the horse to check
      * @return true if the horse is happy, false otherwise
-     * @notice a horse is happy IFF it has been fed within the last HORSE_HAPPY_IF_FED_WITHIN seconds
+     * @notice a horse is happy IF it has been fed within the last HORSE_HAPPY_IF_FED_WITHIN seconds
      */
+    // @audit if block.timestamp is less than 24h (HORSE_HAPPY_IF_FED_WITHIN),
+    // the calculation: `block.timestamp - HORSE_HAPPY_IF_FED_WITHIN` will be negative
+    // which will cause an arithmetic error
     function isHappyHorse(uint256 horseId) external view returns (bool) {
         if (horseIdToFedTimeStamp[horseId] <= block.timestamp - HORSE_HAPPY_IF_FED_WITHIN) {
+            //  100    110    - 24
+            // so if block.timestamp is 110, then 110 - 24 = 86 and the horse is happy
+            // if block.timestamp is 130, then 130 - 24 = 106 and the horse is not happy
             return false;
         }
         return true;
     }
+    // @audit temporary helper function:
+    // @notice gets the timestamp of the last time the horse was fed
+
+    function getLastFedTimeStamp(uint256 horseId) public view returns (uint256 fedTimeStamp) {
+        fedTimeStamp = horseIdToFedTimeStamp[horseId];
+        return fedTimeStamp;
+    }
 }
+// if 100 < 86 ---- 100 is not less than 86 so return false, horse is not happy
+// if 100 < 106 ---- 100 is less than 106 so return true, horse is happy
+// if 0 < 10 - 24 = -14
