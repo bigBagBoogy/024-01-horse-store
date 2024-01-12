@@ -106,11 +106,12 @@ abstract contract Base_Test is StdInvariant, Test {
         // Mint a horse
         vm.prank(user);
         horseStore.mintHorse();
-
         // Get the ID of the minted horse
         uint256 horseId = horseStore.totalSupply() - 1; // Assuming totalSupply increments on mint
-        horseId = 2;
         console2.log("horseId", horseId);
+
+        horseId = 2;
+        console2.log("horseId", horseId); // 0
         // Check that the minted horse is not happy initially
         vm.warp(horseStore.HORSE_HAPPY_IF_FED_WITHIN());
         vm.roll(horseStore.HORSE_HAPPY_IF_FED_WITHIN());
@@ -119,7 +120,7 @@ abstract contract Base_Test is StdInvariant, Test {
         assertEq(isHappy, false);
     }
 
-    function testGetFedTimeStamp() public {
+    function testGetFedTimeStamp() public view {
         uint256 horseId = horseStore.totalSupply();
         uint256 fedTimeStamp = horseStore.getLastFedTimeStamp(horseId);
         console2.log("fedTimeStamp", fedTimeStamp); // logs 0
@@ -127,6 +128,22 @@ abstract contract Base_Test is StdInvariant, Test {
         // below calculation is: delta = 1 - 86400 = -86399
         int256 delta = int256(block.timestamp) - int256(horseStore.HORSE_HAPPY_IF_FED_WITHIN());
         console2.log("delta", delta); // logs  -86399
+    }
+
+    function testMintingHorseDoesNotAssignOwner(address randomOwner) public {
+        vm.prank(user);
+        horseStore.mintHorse(); // this is the first horse an has tokenId 0
+        // vm.assume(randomOwner != address(0));
+        // vm.assume(!_isContract(randomOwner));
+
+        // totalSupply increments on mint and should now be 1
+        uint256 horseId = horseStore.totalSupply();
+        console2.log("horseId", horseId);
+        vm.prank(randomOwner);
+        horseStore.mintHorse();
+        assertEq(horseStore.ownerOf(horseId), randomOwner);
+        horseId = horseStore.totalSupply();
+        console2.log("horseId", horseId);
     }
 
     /*//////////////////////////////////////////////////////////////

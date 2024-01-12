@@ -12,6 +12,7 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
     string constant NFT_SYMBOL = "HS";
     uint256 public constant HORSE_HAPPY_IF_FED_WITHIN = 1 days;
 
+    // @audit There's no explicit initialization of the horseIdToFedTimeStamp mapping. If the contract starts in a virgin state and the first transaction is a call to feedHorse, it may lead to unexpected behavior since the mapping has not been populated with any horse data.
     mapping(uint256 id => uint256 lastFedTimeStamp) public horseIdToFedTimeStamp;
 
     constructor() ERC721(NFT_NAME, NFT_SYMBOL) {}
@@ -19,7 +20,8 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
     /*
      * @notice allows anyone to mint their own horse NFT. 
      * e totalSupply() is from ERC721Enumerable and just keeps track.
-     * e no timestamp is stored
+     * e no timestamp is stored, so after this mint, the new horse will not 
+     * yet be in the `horseIdToFedTimeStamp` mapping
      */
     function mintHorse() external {
         _safeMint(msg.sender, totalSupply());
@@ -29,6 +31,8 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
      * @param horseId the id of the horse to feed
      * @notice allows anyone to feed anyone else's horse. 
      */
+    // @audit Default Value for Non-Existent Horse IDs:
+    // The feedHorse function doesn't check whether the specified horseId exists before updating its timestamp in the horseIdToFedTimeStamp mapping. This could lead to unintended behavior where the timestamp is updated for non-existent horses.
     function feedHorse(uint256 horseId) external {
         horseIdToFedTimeStamp[horseId] = block.timestamp;
     }
@@ -40,7 +44,7 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
      */
     // @audit if block.timestamp is less than 24h (HORSE_HAPPY_IF_FED_WITHIN),
     // the calculation: `block.timestamp - HORSE_HAPPY_IF_FED_WITHIN` will be negative
-    // which will cause an arithmetic error
+    // which will cause an arithmetic error.
     function isHappyHorse(uint256 horseId) external view returns (bool) {
         if (horseIdToFedTimeStamp[horseId] <= block.timestamp - HORSE_HAPPY_IF_FED_WITHIN) {
             //  100    110    - 24
@@ -57,7 +61,8 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
         fedTimeStamp = horseIdToFedTimeStamp[horseId];
         return fedTimeStamp;
     }
+
+    // if 100 < 86 ---- 100 is not less than 86 so return false, horse is not happy
+    // if 100 < 106 ---- 100 is less than 106 so return true, horse is happy
+    // if 0 < 10 - 24 = -14
 }
-// if 100 < 86 ---- 100 is not less than 86 so return false, horse is not happy
-// if 100 < 106 ---- 100 is less than 106 so return true, horse is happy
-// if 0 < 10 - 24 = -14
