@@ -7,6 +7,9 @@ import {Test, console2, StdInvariant} from "forge-std/Test.sol";
 abstract contract Base_Test is StdInvariant, Test {
     HorseStore horseStore;
     address user = makeAddr("user");
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+
     string public constant NFT_NAME = "HorseStore";
     string public constant NFT_SYMBOL = "HS";
 
@@ -31,15 +34,17 @@ abstract contract Base_Test is StdInvariant, Test {
 
     function testFeedingHorseUpdatesTimestamps() public {
         uint256 horseId = horseStore.totalSupply();
-        vm.warp(10);
-        vm.roll(10);
+        vm.warp(100000);
+        // vm.roll(100000);
         vm.prank(user);
         horseStore.mintHorse();
 
         uint256 lastFedTimeStamp = block.timestamp;
         horseStore.feedHorse(horseId);
 
-        assertEq(horseStore.horseIdToFedTimeStamp(horseId), lastFedTimeStamp);
+        assertEq(horseStore.horseIdToFedTimeStamp(horseId), lastFedTimeStamp); // 10
+        console2.log("horseStore.horseIdToFedTimeStamp(horseId)", horseStore.horseIdToFedTimeStamp(horseId));
+        assert(horseStore.isHappyHorse(horseId) == true);
     }
 
     function testFeedingMakesHappyHorse() public {
@@ -133,8 +138,8 @@ abstract contract Base_Test is StdInvariant, Test {
     function testMintingHorseDoesNotAssignOwner(address randomOwner) public {
         vm.prank(user);
         horseStore.mintHorse(); // this is the first horse an has tokenId 0
-        // vm.assume(randomOwner != address(0));
-        // vm.assume(!_isContract(randomOwner));
+        vm.assume(randomOwner != address(0));
+        vm.assume(!_isContract(randomOwner));
 
         // totalSupply increments on mint and should now be 1
         uint256 horseId = horseStore.totalSupply();
@@ -144,6 +149,73 @@ abstract contract Base_Test is StdInvariant, Test {
         assertEq(horseStore.ownerOf(horseId), randomOwner);
         horseId = horseStore.totalSupply();
         console2.log("horseId", horseId);
+    }
+
+    function test_canMintTwoHorses() public {
+        vm.startPrank(user);
+        horseStore.mintHorse(); // horseId 0
+        horseStore.mintHorse(); // horseId 1    --  only solidity permits 2nd mint
+        vm.stopPrank();
+        console2.log("block.timeStamp", block.timestamp);
+        vm.warp(1 days);
+        vm.roll(1 days);
+        console2.log("block.timeStamp", block.timestamp);
+        uint256 horseId = horseStore.totalSupply() - 1;
+        console2.log("horseId", horseId); // 1
+        address owner = horseStore.ownerOf(horseId);
+        console2.log("owner", owner);
+    }
+
+    function test_aliceFeedsBobsHorse() public {
+        vm.prank(alice);
+        horseStore.mintHorse(); // horse 0
+        vm.prank(bob);
+        horseStore.feedHorse(0); // by feeding horse 0, bob claims spot 0 in horseIdToFedTimeStamp array
+        vm.warp(1 days);
+        vm.roll(1 days);
+        uint256 horseId = horseStore.totalSupply() - 1;
+        address owner = horseStore.ownerOf(horseId);
+        console2.log("owner", owner);
+    }
+
+    function test_ownerOfbalanceOfIsHappy() public {
+        vm.warp(horseStore.HORSE_HAPPY_IF_FED_WITHIN()); // prevents arithmetic error
+        vm.roll(horseStore.HORSE_HAPPY_IF_FED_WITHIN()); // due to lack of initialization
+
+        vm.startPrank(user);
+        horseStore.mintHorse(); // horse 0
+        console2.log("block.timeStamp", block.timestamp);
+        vm.warp(block.timestamp + 100000 seconds); // little over 24 hours
+        vm.roll(block.timestamp + 100000 seconds);
+        console2.log("block.timeStamp", block.timestamp);
+        uint256 horseId = horseStore.totalSupply() - 1; // 0
+        horseStore.feedHorse(horseId); // underflows in huff.  why? In this function, we're trying to record the block.timestamp. Maybe if this timestamp is in the past, it will cause an arithmetic error. (be negative)
+        horseStore.getLastFedTimeStamp(horseId); // logs 0
+        horseStore.isHappyHorse(horseId);
+        vm.warp(block.timestamp + 100000 seconds); // little over 24 hours
+        vm.roll(block.timestamp + 100000 seconds);
+        console2.log("block.timeStamp", block.timestamp);
+        horseStore.getLastFedTimeStamp(horseId); // logs 100001
+        horseStore.isHappyHorse(horseId);
+        vm.warp(block.timestamp + 100000 seconds); // little over 24 hours
+        vm.roll(block.timestamp + 100000 seconds);
+        console2.log("block.timeStamp", block.timestamp);
+        horseStore.getLastFedTimeStamp(horseId); // logs logs 100001
+        horseStore.isHappyHorse(horseId);
+        vm.warp(block.timestamp + 100000 seconds); // little over 24 hours
+        vm.roll(block.timestamp + 100000 seconds);
+        console2.log("block.timeStamp", block.timestamp);
+        horseStore.getLastFedTimeStamp(horseId); // logs logs 100001
+        horseStore.isHappyHorse(horseId);
+        horseStore.feedHorse(horseId);
+        vm.warp(block.timestamp + 43200 seconds); // 12 hours
+        vm.roll(block.timestamp + 43200 seconds);
+        console2.log("block.timeStamp", block.timestamp);
+        horseStore.getLastFedTimeStamp(horseId); // logs logs 100001
+        horseStore.isHappyHorse(horseId);
+
+        // owner = horseStore.ownerOf(horseId);
+        // console2.log("owner", owner);
     }
 
     /*//////////////////////////////////////////////////////////////

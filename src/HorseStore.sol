@@ -47,9 +47,7 @@ contract HorseStore is IHorseStore, ERC721Enumerable {
     // which will cause an arithmetic error.
     function isHappyHorse(uint256 horseId) external view returns (bool) {
         if (horseIdToFedTimeStamp[horseId] <= block.timestamp - HORSE_HAPPY_IF_FED_WITHIN) {
-            //  100    110    - 24
-            // so if block.timestamp is 110, then 110 - 24 = 86 and the horse is happy
-            // if block.timestamp is 130, then 130 - 24 = 106 and the horse is not happy
+            //  1 <=   1    - 24 = -23
             return false;
         }
         return true;
