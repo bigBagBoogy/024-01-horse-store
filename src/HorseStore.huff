@@ -324,7 +324,7 @@
     // Output stack:                                // []
 
     // // Check that the recipient is valid (not 0 address)
-    // dup1 iszero invalid_recipient jumpi             // [to, tokenId]
+    dup1 iszero invalid_recipient jumpi             // [to, tokenId]
     
 // Debugging: Log the current TOTAL_SUPPLY before modification
     [TOTAL_SUPPLY] sload
@@ -341,6 +341,11 @@
     [TOTAL_SUPPLY] sload                            // [currentTotalSupply]
     0x01 add                                       // [newTotalSupply]
     [TOTAL_SUPPLY] sstore                          // []
+
+   // Debugging: Log the new TOTAL_SUPPLY after modification 
+      [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2
 
     // Give tokens to the recipient.
     TRANSFER_GIVE_TO()                              // [from (0x00), to, tokenId]
@@ -498,7 +503,7 @@
     dup2                            // [to, from, to, tokenId]
 	[BALANCE_LOCATION]              // [balance_slot, to, from, to, tokenId]
     LOAD_ELEMENT_FROM_KEYS(0x00)    // [balance, from, to, tokenId]
-    0x01 add                        // [balance+1, from, to, tokenId]
+    0x01 add                        // [balance+1, from, to, tokenId] add 1 to amount of tokens minter has
 
     // update balance
 	dup3                            // [to, balance+1, from, to, tokenId]

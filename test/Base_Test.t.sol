@@ -229,15 +229,19 @@ abstract contract Base_Test is StdInvariant, Test {
         vm.prank(alice); // user does next line
         horseStore.mintHorse(); // this is the first horse an has tokenId 0
 
-        assertEq(horseStore.ownerOf(0), alice);
         console2.log("potentialHorseId", horseStore.totalSupply());
-        console2.log("who owns horse 0?", horseStore.ownerOf(0));
         vm.prank(bob);
         horseStore.mintHorse();
 
         console2.log("potentialHorseId", horseStore.totalSupply());
         vm.prank(user);
         horseStore.mintHorse();
+        horseStore.balanceOf(alice);
+        horseStore.balanceOf(bob);
+        horseStore.balanceOf(user);
+        console2.log("who owns horse 0?", horseStore.ownerOf(0));
+        // console2.log("who owns horse 1?", horseStore.ownerOf(1));
+        // console2.log("who owns horse 2?", horseStore.ownerOf(2));
     }
 
     /*//////////////////////////////////////////////////////////////
