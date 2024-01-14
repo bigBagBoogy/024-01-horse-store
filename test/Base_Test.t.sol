@@ -17,6 +17,12 @@ abstract contract Base_Test is StdInvariant, Test {
         horseStore = new HorseStore();
     }
 
+    modifier aliceHasHorse0() {
+        vm.prank(alice);
+        horseStore.mintHorse();
+        _;
+    }
+
     function testName() public {
         string memory name = horseStore.name();
         assertEq(name, NFT_NAME);
@@ -134,9 +140,10 @@ abstract contract Base_Test is StdInvariant, Test {
         int256 delta = int256(block.timestamp) - int256(horseStore.HORSE_HAPPY_IF_FED_WITHIN());
         console2.log("delta", delta); // logs  -86399
     }
+    // in huff, randomOwner becomes: 0x0000000000000000000000000000000000000001
 
     function testMintingHorseDoesNotAssignOwner(address randomOwner) public {
-        vm.prank(user);
+        vm.prank(user); // user does next line
         horseStore.mintHorse(); // this is the first horse an has tokenId 0
         vm.assume(randomOwner != address(0));
         vm.assume(!_isContract(randomOwner));
@@ -216,6 +223,36 @@ abstract contract Base_Test is StdInvariant, Test {
 
         // owner = horseStore.ownerOf(horseId);
         // console2.log("owner", owner);
+    }
+
+    function testTwoUsersCanMintAHorse() public {
+        vm.prank(alice); // user does next line
+        horseStore.mintHorse(); // this is the first horse an has tokenId 0
+
+        assertEq(horseStore.ownerOf(0), alice);
+        console2.log("potentialHorseId", horseStore.totalSupply());
+        console2.log("who owns horse 0?", horseStore.ownerOf(0));
+        vm.prank(bob);
+        horseStore.mintHorse();
+
+        console2.log("potentialHorseId", horseStore.totalSupply());
+        vm.prank(user);
+        horseStore.mintHorse();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PROOF OF CODE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_calling_IsHappyHorse_within24hFails() public {
+        uint256 horseId = horseStore.totalSupply();
+        vm.warp(horseStore.HORSE_HAPPY_IF_FED_WITHIN() - 1 hours);
+        vm.roll(horseStore.HORSE_HAPPY_IF_FED_WITHIN() - 1 hours);
+        vm.prank(user);
+        horseStore.mintHorse();
+        horseStore.feedHorse(horseId);
+        vm.expectRevert(); // this does not work with huff. comment out to see errors in stacktrace for both .sol and .huff
+        horseStore.isHappyHorse(horseId);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -2,7 +2,7 @@
 #include "../lib/huffmate/src/data-structures/Hashmap.huff"
 #include "../lib/huffmate/src/utils/CommonErrors.huff"
 
-/* HorseStore Interface */
+/* HorseStore Interface @BBB think of these as "external" or "public" functions */
 #define function mintHorse() nonpayable returns ()
 #define function feedHorse(uint256) nonpayable returns ()
 #define function isHappyHorse(uint256) view returns (bool)
@@ -33,6 +33,7 @@
 #define event ApprovalForAll(address,address,bool)
 
 /* Constants */
+// decoded this with: ```cast abi-encode "dummyFunction(uint256)" 86400``` = correct
 #define constant HORSE_HAPPY_IF_FED_WITHIN_CONST = 0x0000000000000000000000000000000000000000000000000000000000015180 // 1 days 
 
 /* Storage Slots */
@@ -322,15 +323,24 @@
     // Input stack:                                 // [to, tokenId]
     // Output stack:                                // []
 
-    // Check that the recipient is valid
-    dup1 iszero invalid_recipient jumpi             // [to, tokenId]
-
+    // // Check that the recipient is valid (not 0 address)
+    // dup1 iszero invalid_recipient jumpi             // [to, tokenId]
+    
+// Debugging: Log the current TOTAL_SUPPLY before modification
+    [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2
     // Create the minting params
-    0x00 dup3                                       // [tokenId, from (0x00), to, tokenId]
+    0x00 dup2                                       // [tokenId, from (0x00), to, tokenId]
 
-    // Check token ownership
+    // Check token ownership 
     [OWNER_LOCATION] LOAD_ELEMENT_FROM_KEYS(0x00)   // [owner, from (0x00), to, tokenId]
-    unauthorized jumpi
+    unauthorized jumpi     
+    
+// Increment totalSupply
+    [TOTAL_SUPPLY] sload                            // [currentTotalSupply]
+    0x01 add                                       // [newTotalSupply]
+    [TOTAL_SUPPLY] sstore                          // []
 
     // Give tokens to the recipient.
     TRANSFER_GIVE_TO()                              // [from (0x00), to, tokenId]
