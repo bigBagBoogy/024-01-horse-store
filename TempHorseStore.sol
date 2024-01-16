@@ -2,7 +2,7 @@
 #include "../lib/huffmate/src/data-structures/Hashmap.huff"
 #include "../lib/huffmate/src/utils/CommonErrors.huff"
 
-/* HorseStore Interface */
+/* HorseStore Interface @BBB think of these as "external" or "public" functions */
 #define function mintHorse() nonpayable returns ()
 #define function feedHorse(uint256) nonpayable returns ()
 #define function isHappyHorse(uint256) view returns (bool)
@@ -33,6 +33,7 @@
 #define event ApprovalForAll(address,address,bool)
 
 /* Constants */
+// decoded this with: ```cast abi-encode "dummyFunction(uint256)" 86400``` = correct
 #define constant HORSE_HAPPY_IF_FED_WITHIN_CONST = 0x0000000000000000000000000000000000000000000000000000000000015180 // 1 days 
 
 /* Storage Slots */
@@ -71,6 +72,12 @@
 }
 
 #define macro MINT_HORSE() = takes (0) returns (0) {
+
+ [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2  // The 0x00 represents the offset in memory where the value should be stored
+    //0x20 is the length of the data to be logged (32 bytes)
+
     [TOTAL_SUPPLY] // [TOTAL_SUPPLY]
     caller         // [msg.sender, TOTAL_SUPPLY]
     _MINT()        // [] 
@@ -322,21 +329,45 @@
     // Input stack:                                 // [to, tokenId]
     // Output stack:                                // []
 
-    // Check that the recipient is valid
+    // // Check that the recipient is valid (not 0 address)
     dup1 iszero invalid_recipient jumpi             // [to, tokenId]
 
+    
+       
+// Debugging: Log the current TOTAL_SUPPLY before modification
+    [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2
+
+    
     // Create the minting params
     0x00 dup3                                       // [tokenId, from (0x00), to, tokenId]
 
-    // Check token ownership
+    // Check token ownership 
+    0x04 calldataload 
     [OWNER_LOCATION] LOAD_ELEMENT_FROM_KEYS(0x00)   // [owner, from (0x00), to, tokenId]
-    unauthorized jumpi
+    unauthorized jumpi    
+
+    // Debugging: Log the tokenId before modification
+    [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2 
+    
+// Increment totalSupply
+    [TOTAL_SUPPLY] sload                            // [currentTotalSupply]
+    0x01 add                                       // [newTotalSupply]
+    [TOTAL_SUPPLY] sstore                          // []
+
+   // Debugging: Log the new TOTAL_SUPPLY after modification 
+      [TOTAL_SUPPLY] sload
+    dup1
+    0x00 0x20 log2
 
     // Give tokens to the recipient.
     TRANSFER_GIVE_TO()                              // [from (0x00), to, tokenId]
 
     // Emit the transfer event.
-    __EVENT_HASH(Transfer)                          // [sig, from (0x00), to, tokenId]
+    __EVENT_HASH(Transfer)       // addr, addr, uint    // [sig, from (0x00), to, tokenId]
     0x00 0x00 log4                                  // []
 
     // Continue Executing
@@ -488,7 +519,7 @@
     dup2                            // [to, from, to, tokenId]
 	[BALANCE_LOCATION]              // [balance_slot, to, from, to, tokenId]
     LOAD_ELEMENT_FROM_KEYS(0x00)    // [balance, from, to, tokenId]
-    0x01 add                        // [balance+1, from, to, tokenId]
+    0x01 add                        // [balance+1, from, to, tokenId] add 1 to amount of tokens minter has
 
     // update balance
 	dup3                            // [to, balance+1, from, to, tokenId]

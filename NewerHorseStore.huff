@@ -326,18 +326,31 @@
     dup1 iszero invalid_recipient jumpi             // [to, tokenId]
 
     // Create the minting params
-    0x00 dup3                                       // [tokenId, from (0x00), to, tokenId]
+    // this line is designed to insert a placeholder (0x00) at the second position in the stack.  It effectively replaces the second element (to) with 0x00
+    0x00 dup2                                       // [tokenId, from (0x00), to, tokenId]
 
-    // Check token ownership
+    // Check token ownership                        index     0       1      2       3
     [OWNER_LOCATION] LOAD_ELEMENT_FROM_KEYS(0x00)   // [owner, from (0x00), to, tokenId]
     unauthorized jumpi
 
     // Give tokens to the recipient.
     TRANSFER_GIVE_TO()                              // [from (0x00), to, tokenId]
 
+    //  pop                             // [from (0x00), to]
+    //  pop                             // [from (0x00)]
+    // [TOTAL_SUPPLY]                   // [TOTAL_SUPPLY, from (0x00)]    
+    // swap                             // [from (0x00), TOTAL_SUPPLY]
+    // caller                           // [to, from (0x00), TOTAL_SUPPLY]  
+
     // Emit the transfer event.
+    
     __EVENT_HASH(Transfer)                          // [sig, from (0x00), to, tokenId]
     0x00 0x00 log4                                  // []
+
+     // Increment totalSupply
+    [TOTAL_SUPPLY] sload                            // [currentTotalSupply]
+    0x01 add                                        // [newTotalSupply]
+    [TOTAL_SUPPLY] sstore                           // []
 
     // Continue Executing
     cont jump
@@ -485,6 +498,8 @@
 #define macro TRANSFER_GIVE_TO() = takes (3) returns (3) {
     // retrieve balance
     // input stack:                 // [from, to, tokenId]
+
+   
     dup2                            // [to, from, to, tokenId]
 	[BALANCE_LOCATION]              // [balance_slot, to, from, to, tokenId]
     LOAD_ELEMENT_FROM_KEYS(0x00)    // [balance, from, to, tokenId]
@@ -495,7 +510,7 @@
     [BALANCE_LOCATION]              // [balance_slot, to, balance+1, from, to, tokenId]
     STORE_ELEMENT_FROM_KEYS(0x00)   // [from, to, tokenId]
 
-    // update ownerOf
+       // update ownerOf
     dup2 dup4                       // [tokenId, to, from, to, tokenId]
     [OWNER_LOCATION]                // [owner_slot, tokenId, to, from, to, tokenId]
     STORE_ELEMENT_FROM_KEYS(0x00)   // [from, to, tokenId]
@@ -504,4 +519,5 @@
     0x00 dup4                       // [tokenId, address(0), from, to, tokenId]
     [SINGLE_APPROVAL_LOCATION]      // [approval_slot, tokenId, address(0), from, to, tokenId]
     STORE_ELEMENT_FROM_KEYS(0x00)   // [from, to, tokenId]
+   
 }
